@@ -60,12 +60,13 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $form->addInput($element);
 
         $list = array(
+            'memcached' => 'Memcached',
             'memcache' => 'Memcache',
             'redis' => 'Redis',
             'file' => '文件'
         );
 
-        $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, 'memcache', '缓存驱动');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, 'memcached', '缓存驱动');
         $form->addInput($element);
 
         $element = new Typecho_Widget_Helper_Form_Element_Text('host', null, '127.0.0.1', '主机地址', '主机地址你懂不');
@@ -76,7 +77,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         $list = array('关闭', '开启');
 
-        $element = new Typecho_Widget_Helper_Form_Element_Radio('is_debug', $list, 1, '是否开启debug');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('is_debug', $list, 0, '是否开启debug');
         $form->addInput($element);
     }
 
@@ -135,7 +136,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $init_options = Helper::options()->plugin('TpCache');
             $driver_name = $init_options->cache_driver;
             $class_name = "typecho_$driver_name";
-            $filename = "driver/$driver_name.class.php";
+            $filename = "driver/$class_name.class.php";
             require_once 'cache.interface.php';
             require_once $filename;
             self::$cache = $class_name::getInstance($init_options);
