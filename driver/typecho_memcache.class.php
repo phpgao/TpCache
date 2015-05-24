@@ -6,10 +6,12 @@ class typecho_memcache implements TpCache{
     private $mc = null;
     private $host = '127.0.0.1';
     private $port = 11211;
+    private $expire = 86400;
 
     private function __construct($option=null) {
         $this->host = $option->host;
         $this->port = $option->port;
+        $this->expire = $option->expire;
         $this->init($option);
     }
 
@@ -24,25 +26,25 @@ class typecho_memcache implements TpCache{
     {
         try{
             $this->mc = new Memcache;
-            $this->mc->connect($this->host, $this->port);
+            $this->mc->addServer($this->host, $this->port);
         }catch (Exception $e){
             echo $e->getMessage();
         }
     }
 
-    public function add($key, $value)
+    public function add($key, $value, $expire=null)
     {
-        return $this->mc->add($key, $value);
+        return $this->mc->add($key, $value, false, is_null($expire) ? $this->expire : $expire);
     }
 
-    public function del($key)
+    public function delete($key)
     {
-        return $this->mc->del($key);
+        return $this->mc->delete($key);
     }
 
-    public function set($key, $value)
+    public function set($key, $value, $expire=null)
     {
-        return $this->mc->set($key, $value);
+        return $this->mc->set($key, $value, false, is_null($expire) ? $this->expire : $expire);
     }
 
     public function get($key)

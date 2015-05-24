@@ -69,6 +69,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, 'memcached', '缓存驱动');
         $form->addInput($element);
 
+        $element = new Typecho_Widget_Helper_Form_Element_Text('expire', null, '86400', '缓存过期时间', '86400 = 60s * 60m *24h 你懂不');
+        $form->addInput($element);
+
         $element = new Typecho_Widget_Helper_Form_Element_Text('host', null, '127.0.0.1', '主机地址', '主机地址你懂不');
         $form->addInput($element);
 
@@ -101,16 +104,16 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         //key非null则需要缓存
         if (!is_null(self::$key)) {
+            $plugin_config = Helper::options()->plugin('TpCache');
             try {
                 self::$cache = self::getCache();
                 $data = self::$cache->get(self::$key);
                 if ($data !== false) {
                     $data = unserialize($data);
-
                     //如果超时
-                    if ($data['c_time'] + 4 < time()) {
+                    if ($data['c_time'] + $plugin_config->expire < time()) {
                         if(Helper::options()->plugin('TpCache')->is_debug) echo "Expired!\n";
-                        $data['c_time'] = $data['c_time'] + 1;
+                        $data['c_time'] = $data['c_time'] + 20;
                         self::$cache->set(self::$key, serialize($data));
                         self::$html = '';
                     } else {
@@ -122,6 +125,8 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             } catch (Exception $e) {
                 echo $e->getMessage();
             }
+
+            ob_flush();
         }
     }
 
@@ -137,7 +142,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $driver_name = $init_options->cache_driver;
             $class_name = "typecho_$driver_name";
             $filename = "driver/$class_name.class.php";
-            require_once 'cache.interface.php';
+            require_once 'driver/cache.interface.php';
             require_once $filename;
             self::$cache = $class_name::getInstance($init_options);
         }
