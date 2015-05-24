@@ -22,7 +22,12 @@ class typecho_memcache implements TpCache{
 
     public function init($option)
     {
-        $this->mc = memcache_connect($this->host, $this->port);
+        try{
+            $this->mc = new Memcache;
+            $this->mc->connect($this->host, $this->port);
+        }catch (Exception $e){
+            echo $e->getMessage();
+        }
     }
 
     public function add($key, $value)
