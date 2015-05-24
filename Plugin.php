@@ -179,8 +179,12 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         /** 获取PATHINFO */
         $req = new Typecho_Request();
+
+
+        if($req->isPost()) return null;
+
         $pathInfo = $req->getPathInfo();
-        //var_dump($_SERVER);
+
 
         $option = Helper::options();
         $_routingTable = $option->routingTable;
