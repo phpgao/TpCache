@@ -120,13 +120,14 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $pathInfo = self::P();
         if(is_null($pathInfo)) return;
 
+
         //判断是否需要路由
-        self::$key = md5(self::needCache($pathInfo));
+        self::$key = self::needCache($pathInfo);
 
         //key非null则需要缓存
         if (is_null(self::$key)) return;
 
-
+        self::$key = md5(self::$key);
         try {
             self::$cache = self::getCache();
             $data = self::$cache->get(self::$key);
@@ -211,6 +212,13 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function needCache($pathInfo)
     {
+        //后台数据不缓存
+        $pattern = '#^' . __TYPECHO_ADMIN_DIR__ . '#i';
+        if( preg_match($pattern, $pathInfo) ) return null;
+
+        //action不缓存
+        $pattern = '#^/action#i';
+        if( preg_match($pattern, $pathInfo) ) return null;
 
         $_routingTable = self::$sys_config->routingTable;
 
