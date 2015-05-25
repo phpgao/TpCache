@@ -121,7 +121,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         if(is_null($pathInfo)) return;
 
         //判断是否需要路由
-        self::$key = self::needCache($pathInfo);
+        self::$key = md5(self::needCache($pathInfo));
 
         //key非null则需要缓存
         if (is_null(self::$key)) return;
@@ -225,7 +225,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                 if (in_array($key, self::$plugin_config->cache_page)) {
                     if(self::$plugin_config->is_debug) echo "This page needs to be cached!\n" . '
 <a href="http://www.phpgao.com/tpcache_for_typecho.html" target="_blank"> Bug Report </a>';
-                    return md5($pathInfo);
+                    return $pathInfo;
                 }
             }
         }
