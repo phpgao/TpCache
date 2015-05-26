@@ -270,6 +270,23 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $type = $contents['type'];
         //获取路由信息
         $routeExists = (NULL != Typecho_Router::get($type));
+
+        if(!is_null($routeExists)){
+            $db = Typecho_Db::get();
+            $contents['cid'] = $class->cid;
+            $contents['categories'] = $db->fetchAll($db->select()->from('table.metas')
+                ->join('table.relationships', 'table.relationships.mid = table.metas.mid')
+                ->where('table.relationships.cid = ?', $contents['cid'])
+                ->where('table.metas.type = ?', 'category')
+                ->order('table.metas.order', Typecho_Db::SORT_ASC));
+            $contents['category'] = urlencode(current(Typecho_Common::arrayFlatten($contents['categories'], 'slug')));
+            $contents['slug'] = urlencode($contents['slug']);
+            $contents['date'] = new Typecho_Date($contents['created']);
+            $contents['year'] = $contents['date']->year;
+            $contents['month'] = $contents['date']->month;
+            $contents['day'] = $contents['date']->day;
+        }
+
         //生成永久连接
         $path_info = $routeExists ? Typecho_Router::url($type, $contents) : '#';
 
