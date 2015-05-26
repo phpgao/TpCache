@@ -71,6 +71,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $element = new Typecho_Widget_Helper_Form_Element_Checkbox('cache_page', $list, array('index', 'post'), '需要缓存的页面');
         $form->addInput($element);
 
+        $list = array('关闭', '开启');
+
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('login', $list, 0, '是否对已登录用户失效', '已经录用户不会触发缓存策略');
+        $form->addInput($element);
+
         $list = array(
             'memcached' => 'Memcached',
             'memcache' => 'Memcache',
@@ -112,9 +117,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function C()
     {
-
         self::$sys_config = Helper::options();
         self::$plugin_config = self::$sys_config->plugin('TpCache');
+
+        //对登录用户失效
+        if(self::check_login()) return;
 
         //获取路径信息
         $pathInfo = self::P();
@@ -177,6 +184,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function S()
     {
+        //对登录用户失效
+        if(self::check_login()) return;
+
         //若self::$key不为空，则使用缓存
         if (is_null(self::$key)) return;
 
@@ -308,6 +318,14 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         }
 
         if(is_null($home)) @$cache->delete(md5('/'));
+    }
+
+
+    public static function check_login(){
+        //对登录用户失效
+        if(self::$plugin_config->login && Typecho_Widget::widget('Widget_User')->hasLogin()) return true;
+
+        return false;
     }
 
 
