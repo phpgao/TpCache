@@ -152,7 +152,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
                 }
             }else{
-                echo "Can't find cache!Rebuilding";
+                if (self::$plugin_config->is_debug) echo "Can't find cache!Rebuilding";
             }
 
         } catch (Exception $e) {
