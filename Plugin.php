@@ -6,16 +6,18 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  *
  * @package TpCache
  * @author 老高
- * @version 0.3
+ * @version 0.5
  * @link http://www.phpgao.com
  */
 class TpCache_Plugin implements Typecho_Plugin_Interface
 {
+    public static $key = null;
     public static $cache = null;
     public static $html = null;
-    public static $key = null;
+    public static $path = null;
     public static $sys_config = null;
     public static $plugin_config = null;
+    public static $request = null;
 
     public static function activate()
     {
@@ -24,8 +26,8 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('index.php')->end = array('TpCache_Plugin', 'S');
 
         //页面编辑
-        Typecho_Plugin::factory('Widget_Contents_Post_Edit')->finishPublish = array('TpCache_Plugin', 'update');
-        Typecho_Plugin::factory('Widget_Contents_Page_Edit')->finishPublish = array('TpCache_Plugin', 'update');
+        Typecho_Plugin::factory('Widget_Contents_Post_Edit')->finishPublish = array('TpCache_Plugin', 'post_update');
+        Typecho_Plugin::factory('Widget_Contents_Page_Edit')->finishPublish = array('TpCache_Plugin', 'post_update');
 
         //评论
         Typecho_Plugin::factory('Widget_Feedback')->finishComment = array('TpCache_Plugin', 'comment_update');
@@ -67,23 +69,25 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             'feed' => 'feed',
             'page' => '页面',
         );
-
         $element = new Typecho_Widget_Helper_Form_Element_Checkbox('cache_page', $list, array('index', 'post'), '需要缓存的页面');
         $form->addInput($element);
 
         $list = array('关闭', '开启');
-
         $element = new Typecho_Widget_Helper_Form_Element_Radio('login', $list, 0, '是否对已登录用户失效', '已经录用户不会触发缓存策略');
         $form->addInput($element);
 
+        $list = array('关闭', '开启');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('enable_ssl', $list, '0', '是否支持SSL');
+        $form->addInput($element);
+
         $list = array(
+            0 => '不使用缓存',
             'memcached' => 'Memcached',
             'memcache' => 'Memcache',
             'redis' => 'Redis',
             'file' => '文件'
         );
-
-        $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, 'memcached', '缓存驱动');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, '0', '缓存驱动');
         $form->addInput($element);
 
         $element = new Typecho_Widget_Helper_Form_Element_Text('expire', null, '86400', '缓存过期时间', '86400 = 60s * 60m *24h 你懂不');
@@ -96,7 +100,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $form->addInput($element);
 
         $list = array('关闭', '开启');
-
         $element = new Typecho_Widget_Helper_Form_Element_Radio('is_debug', $list, 0, '是否开启debug');
         $form->addInput($element);
     }
@@ -117,41 +120,41 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function C()
     {
-        self::$sys_config = Helper::options();
-        self::$plugin_config = self::$sys_config->plugin('TpCache');
 
-        //对登录用户失效
-        if(self::check_login()) return;
+
+        if (self::init() == false) return false;
+
+
+        if (self::pre_check() == false) return false;
 
         //获取路径信息
-        $pathInfo = self::P();
-        if(is_null($pathInfo)) return;
+        $pathInfo = self::$request->getPathInfo();
 
+        //判断是否需要缓存
+        if (!self::needCache($pathInfo)) return false;
 
-        //判断是否需要路由
-        self::$key = self::needCache($pathInfo);
-
-        //key非null则需要缓存
-        if (is_null(self::$key)) return;
-
-        self::$key = md5(self::$key);
         try {
-            self::$cache = self::getCache();
-            $data = self::$cache->get(self::$key);
-            if ($data !== false) {
+
+            $data = self::get(self::$path);
+
+            if ($data != false) {
                 $data = unserialize($data);
                 //如果超时
-                if ($data['c_time'] + self::$plugin_config->expire < time()) {
-                    if(self::$plugin_config->is_debug) echo "Expired!\n";
+                if ($data['c_time'] + self::$plugin_config->expire <= time()) {
+
+                    if (self::$plugin_config->is_debug) echo "Expired!\n";
                     $data['c_time'] = $data['c_time'] + 20;
-                    self::$cache->set(self::$key, serialize($data));
-                    self::$html = '';
+                    self::set(self::$path, serialize($data));
                 } else {
-                    if(self::$plugin_config->is_debug) echo "Hit!\n";
+                    if (self::$plugin_config->is_debug) echo "Hit!\n";
                     if ($data['html']) echo $data['html'];
                     die;
+
                 }
+            }else{
+                echo "Can't find cache!Rebuilding";
             }
+
         } catch (Exception $e) {
             echo $e->getMessage();
         }
@@ -161,74 +164,34 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     }
 
     /**
-     * 从驱动中获取缓存
-     * @return null
-     * @throws Typecho_Plugin_Exception
+     * 前置检查
+     * @return bool
      */
-    public static function getCache()
-    {
-        if (is_null(self::$cache)) {
-            $init_options = Helper::options()->plugin('TpCache');
-            $driver_name = $init_options->cache_driver;
-            $class_name = "typecho_$driver_name";
-            $filename = "driver/$class_name.class.php";
-            require_once 'driver/cache.interface.php';
-            require_once $filename;
-            self::$cache = $class_name::getInstance($init_options);
-        }
-        return self::$cache;
-    }
-
-    /**
-     * 缓存后置操作
-     */
-    public static function S()
+    public static function pre_check()
     {
         //对登录用户失效
-        if(self::check_login()) return;
-
-        //若self::$key不为空，则使用缓存
-        if (is_null(self::$key)) return;
-
-
-        $html = ob_get_contents();
-        if(!empty($html)){
-            $data = array();
-            $data['html'] = $html;
-            $data['c_time'] = time();
-            //更新缓存
-            if(self::$plugin_config->is_debug) echo "Cache updated!\n";
-            self::$cache->set(self::$key, serialize($data));
-        }
-
+        if (self::check_login()) return false;
+        //针对POST失效
+        if (self::$request->isPost()) return false;
+        //是否支持SSL
+        if (self::$plugin_config->enable_ssl == '0' && self::$request->isSecure() == true) return false;
+        return true;
     }
-
-    /**
-     * 获取PATHINFO
-     * @return null|string
-     */
-    public static function P(){
-        $req = new Typecho_Request();
-        if($req->isPost()) return null;
-        return $req->getPathInfo();
-    }
-
 
     /**
      * 根据配置判断是否需要缓存
-     * @param  string 路径信息
-     * @return null|string 后置操作缓存的判断依据
-     * @throws Typecho_Plugin_Exception
+     * @param string 路径信息
+     * @return bool
      */
-    public static function needCache($pathInfo)
+    public static function needCache($path)
     {
         //后台数据不缓存
         $pattern = '#^' . __TYPECHO_ADMIN_DIR__ . '#i';
-        if( preg_match($pattern, $pathInfo) ) return null;
+        if (preg_match($pattern, $path)) return false;
 
-        //action不缓存
+        //action动作不缓存
         $pattern = '#^/action#i';
-        if( preg_match($pattern, $pathInfo) ) return null;
+        if (preg_match($pattern, $path)) return false;
 
         $_routingTable = self::$sys_config->routingTable;
 
@@ -237,19 +200,47 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         foreach ($_routingTable[0] as $key => $route) {
             if ($route['widget'] != 'Widget_Archive') continue;
 
-            if (preg_match($route['regx'], $pathInfo, $matches)) {
+            if (preg_match($route['regx'], $path, $matches)) {
                 $key = str_replace($exclude, '', str_replace($exclude, '', $key));
 
                 if (in_array($key, self::$plugin_config->cache_page)) {
-                    if(self::$plugin_config->is_debug) echo "This page needs to be cached!\n" . '
+                    if (self::$plugin_config->is_debug) echo "This page needs to be cached!\n" . '
 <a href="http://www.phpgao.com/tpcache_for_typecho.html" target="_blank"> Bug Report </a>';
-                    return $pathInfo;
+                    self::$path = $path;
+                    return true;
                 }
             }
         }
 
-        return null;
+        return false;
     }
+
+
+    /**
+     * 缓存后置操作
+     */
+    public static function S()
+    {
+        //对登录用户失效
+        if (self::check_login()) return;
+
+        //若self::$key不为空，则使用缓存
+        if (is_null(self::$key)) return;
+
+
+        $html = ob_get_contents();
+
+        if (!empty($html)) {
+            $data = array();
+            $data['html'] = $html;
+            $data['c_time'] = time();
+            //更新缓存
+            if (self::$plugin_config->is_debug) echo "Cache updated!\n";
+            self::$cache->set(self::$key, serialize($data));
+        }
+
+    }
+
 
     /**
      * 编辑文章后更新缓存
@@ -257,7 +248,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      * @param $class
      *
      */
-    public static function update($contents, $class)
+    public static function post_update($contents, $class)
     {
 
 
@@ -271,7 +262,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //获取路由信息
         $routeExists = (NULL != Typecho_Router::get($type));
 
-        if(!is_null($routeExists)){
+        if (!is_null($routeExists)) {
             $db = Typecho_Db::get();
             $contents['cid'] = $class->cid;
             $contents['categories'] = $db->fetchAll($db->select()->from('table.metas')
@@ -290,12 +281,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //生成永久连接
         $path_info = $routeExists ? Typecho_Router::url($type, $contents) : '#';
 
-        $key = self::needCache($path_info);
+        self::init();
 
-        if(is_null($key)) return;
-
-        //删除缓存
-        self::delete_path($key);
+        if(self::needCache($path_info)) self::delete(self::$path);
     }
 
     /**
@@ -308,39 +296,114 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      * @param string $api api地址
      * @return void
      */
-    public static function comment_update($comment){
+    public static function comment_update($comment)
+    {
         $req = new Typecho_Request();
-        $root = $req->getRequestRoot();
-        $referer = $req->getReferer();
-        $key =str_replace($root, '', $referer);
-        self::delete_path($key);
+        self::delete_path(str_replace($req->getRequestRoot(), '', $req->getReferer()));
     }
 
     /**
-     * 删除指定key
-     * @param $key path_info
-     * @param null $home 是否删除首页缓存
+     * 插件配置初始化
+     * @return bool
+     * @throws Typecho_Plugin_Exception
      */
-    public static function delete_path($key, $home=null){
-        $keys = array();
-        if(!is_array($key)){
-            $keys[] = $key;
-        }else{
-            $keys = $key;
+    public static function init()
+    {
+        if (is_null(self::$sys_config)) {
+            self::$sys_config = Helper::options();
+        }
+        if (is_null(self::$plugin_config)) {
+            self::$plugin_config = self::$sys_config->plugin('TpCache');
         }
 
-        $cache = self::getCache();
-        foreach ($keys as $v) {
-            @$cache->delete(md5($v));
+        if (self::$plugin_config->cache_driver == '0') {
+            return false;
         }
 
-        if(is_null($home)) @$cache->delete(md5('/'));
+        if (is_null(self::$cache)) {
+            $driver_name = self::$plugin_config->cache_driver;
+            $class_name = "typecho_$driver_name";
+            $file_path = "driver/$class_name.class.php";
+            require_once 'driver/cache.interface.php';
+            require_once $file_path;
+            self::$cache = $class_name::getInstance(self::$plugin_config);
+        }
+        if (is_null(self::$request)) {
+            self::$request = new Typecho_Request();
+        }
+
+        return true;
     }
 
 
-    public static function check_login(){
+    public static function set($path, $data)
+    {
+        if (!is_null(self::$key)) return self::$cache->set(self::$key, $data);
+        $prefix = self::$request->getUrlPrefix();
+        self::$key = md5($prefix . $path);
+        return self::$cache->set(self::$key, $data);
+    }
+
+    public static function add($path, $data)
+    {
+
+    }
+
+    public static function get($path)
+    {
+        if (!is_null(self::$key)) return self::$cache->get(self::$key);
+        $prefix = self::$request->getUrlPrefix();
+        self::$key = md5($prefix . $path);
+        return self::$cache->get(self::$key);
+    }
+
+    /**
+     * 删除指定路径
+     * @param string $path 待删除路径
+     * @param null $del_home 是否删除首页缓存
+     */
+    public static function delete($path, $del_home = null)
+    {
+        $prefixs = array(
+            'http'
+                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
+                    ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                            ? '' : ':' . $_SERVER['SERVER_PORT']))
+                ),
+            'https'
+                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
+                    ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                            ? '' : ':' . $_SERVER['SERVER_PORT']))
+                ),
+        );
+        $keys = array();
+        if (!is_array($path)) {
+            $keys[] = $path;
+        } else {
+            $keys = $path;
+        }
+
+
+        foreach ($keys as $v) {
+            foreach ($prefixs as $prefix) {
+                echo $prefix . $v;
+                @self::$cache->delete(md5($prefix . $v));
+            }
+        }
+
+        if (is_null($del_home)){
+            foreach ($prefixs as $prefix) {
+                echo $prefix . '/';
+                @self::$cache->delete(md5($prefix . '/'));
+            }
+        }
+    }
+
+
+    public static function check_login()
+    {
         //对登录用户失效
-        if(self::$plugin_config->login && Typecho_Widget::widget('Widget_User')->hasLogin()) return true;
+        if (self::$plugin_config->login && Typecho_Widget::widget('Widget_User')->hasLogin()) return true;
 
         return false;
     }
