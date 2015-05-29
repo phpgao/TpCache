@@ -120,11 +120,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function C()
     {
-
-
+        // 插件初始化
         if (self::init() == false) return false;
-
-
+        // 前置条件检查
         if (self::pre_check() == false) return false;
 
         //获取路径信息
@@ -158,7 +156,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         } catch (Exception $e) {
             echo $e->getMessage();
         }
-
+        // 先进行一次刷新
         ob_flush();
 
     }
@@ -176,6 +174,17 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //是否支持SSL
         if (self::$plugin_config->enable_ssl == '0' && self::$request->isSecure() == true) return false;
         return true;
+    }
+
+    /**
+     * 判断用户是否登录
+     * @return bool
+     * @throws Typecho_Widget_Exception
+     */
+    public static function check_login()
+    {
+        //http与https相互独立
+        return (self::$plugin_config->login && Typecho_Widget::widget('Widget_User')->hasLogin());
     }
 
     /**
@@ -246,7 +255,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      * 编辑文章后更新缓存
      * @param $contents
      * @param $class
-     *
      */
     public static function post_update($contents, $class)
     {
@@ -398,15 +406,4 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             }
         }
     }
-
-
-    public static function check_login()
-    {
-        //对登录用户失效
-        if (self::$plugin_config->login && Typecho_Widget::widget('Widget_User')->hasLogin()) return true;
-
-        return false;
-    }
-
-
 }
