@@ -1,9 +1,9 @@
 <?php
 
-class typecho_memcached implements TpCache{
+class typecho_redis implements TpCache{
 
     private static $_instance = null;
-    private $mc = null;
+    private $redis = null;
     private $host = '127.0.0.1';
     private $port = 11211;
     private $expire = 86400;
@@ -11,7 +11,7 @@ class typecho_memcached implements TpCache{
     private function __construct($option=null) {
         $this->host = $option->host;
         $this->port = $option->port;
-        $this->expire = $option->expire;
+        $this->expire = $option->expire + 0;
         $this->init($option);
     }
 
@@ -25,8 +25,8 @@ class typecho_memcached implements TpCache{
     public function init($option)
     {
         try{
-            $this->mc = new Memcached;
-            $this->mc->addServer($this->host, $this->port);
+            $this->redis = new Redis();
+            $this->redis->connect($this->host, $this->port);
         }catch (Exception $e){
             echo $e->getMessage();
         }
@@ -34,26 +34,26 @@ class typecho_memcached implements TpCache{
 
     public function add($key, $value, $expire=null)
     {
-        return $this->mc->add($key, $value, is_null($expire) ? $this->expire : $expire);
+        return $this->redis->set($key, $value, is_null($expire) ? $this->expire : $expire);
     }
 
     public function delete($key)
     {
-        return $this->mc->delete($key);
+        return $this->redis->delete($key);
     }
 
     public function set($key, $value, $expire=null)
     {
-        return $this->mc->set($key, $value, is_null($expire) ? $this->expire : $expire);
+        return $this->redis->set($key, $value, is_null($expire) ? $this->expire : $expire);
     }
 
     public function get($key)
     {
-        return $this->mc->get($key);
+        return $this->redis->get($key);
     }
 
     public function flush()
     {
-        return $this->mc->flush();
+        return $this->redis->flushDB();
     }
 }

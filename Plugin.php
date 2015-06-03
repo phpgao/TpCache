@@ -90,18 +90,40 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, '0', '缓存驱动');
         $form->addInput($element);
 
-        $element = new Typecho_Widget_Helper_Form_Element_Text('expire', null, '86400', '缓存过期时间', '86400 = 60s * 60m *24h 你懂不');
+        $element = new Typecho_Widget_Helper_Form_Element_Text('expire', null, '86400', '缓存过期时间', '86400 = 60s * 60m *24h，即一天的秒数');
         $form->addInput($element);
 
-        $element = new Typecho_Widget_Helper_Form_Element_Text('host', null, '127.0.0.1', '主机地址', '主机地址你懂不');
+        $element = new Typecho_Widget_Helper_Form_Element_Text('host', null, '127.0.0.1', '主机地址', '主机地址，一般为127.0.0.1');
         $form->addInput($element);
 
-        $element = new Typecho_Widget_Helper_Form_Element_Text('port', null, '11211', '端口号', '端口号你懂不');
+        $element = new Typecho_Widget_Helper_Form_Element_Text('port', null, '11211', '端口号', '端口号，memcache对应11211，Redis对应6379，其他类型随意填写');
         $form->addInput($element);
 
         $list = array('关闭', '开启');
         $element = new Typecho_Widget_Helper_Form_Element_Radio('is_debug', $list, 0, '是否开启debug');
         $form->addInput($element);
+
+        $list = array('关闭', '清除所有数据');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('is_clean', $list, 0, '清除所有数据');
+        $form->addInput($element);
+    }
+
+    /**
+     * 手动保存配置句柄
+     * @param $config 需要保存的配置
+     */
+    public static function configHandle($config)
+    {
+        self::init();
+
+        try{
+            if($config['is_clean'] == '1') self::$cache->flush();
+        }catch (Exception $e){
+            print $e->getMessage();die;
+        }
+        // 删除缓存仅生效一次
+        $config['is_clean'] = '0';
+        Helper::configPlugin('TpCache',$config);
     }
 
     /**
@@ -150,7 +172,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
                 }
             }else{
-                if (self::$plugin_config->is_debug) echo "Can't find cache!Rebuilding";
+                if (self::$plugin_config->is_debug) echo "Can't find cache!";
             }
 
         } catch (Exception $e) {
@@ -245,7 +267,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $data['c_time'] = time();
             //更新缓存
             if (self::$plugin_config->is_debug) echo "Cache updated!\n";
-            self::$cache->set(self::$key, serialize($data));
+            self::set(self::$key, serialize($data));
         }
 
     }
@@ -346,9 +368,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
     public static function set($path, $data)
     {
+
         if (!is_null(self::$key)) return self::$cache->set(self::$key, $data);
         $prefix = self::$request->getUrlPrefix();
         self::$key = md5($prefix . $path);
+
         return self::$cache->set(self::$key, $data);
     }
 

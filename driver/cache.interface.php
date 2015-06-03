@@ -17,4 +17,7 @@ interface TpCache
 
     //获取缓存
     public function get($key);
+
+    //清空缓存
+    public function flush();
 }
