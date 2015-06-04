@@ -45,6 +45,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
+        try{
+            $uninstall_sql = 'DROP TABLE IF EXISTS `%prefix%cache`';
+            $db = Typecho_Db::get();
+            $prefix = $db->getPrefix();
+            $sql = str_replace('%prefix%', $prefix, $uninstall_sql);
+            $db->query($sql);
+        }catch (Exception $e){
+            echo $e->getMessage();
+        }
     }
 
     /**
