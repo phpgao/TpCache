@@ -69,11 +69,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             'feed' => 'feed',
             'page' => '页面',
         );
-        $element = new Typecho_Widget_Helper_Form_Element_Checkbox('cache_page', $list, array('index', 'post'), '需要缓存的页面');
+        $element = new Typecho_Widget_Helper_Form_Element_Checkbox('cache_page', $list, array('index', 'post', 'search', 'page', 'author', 'tag'), '需要缓存的页面');
         $form->addInput($element);
 
         $list = array('关闭', '开启');
-        $element = new Typecho_Widget_Helper_Form_Element_Radio('login', $list, 0, '是否对已登录用户失效', '已经录用户不会触发缓存策略');
+        $element = new Typecho_Widget_Helper_Form_Element_Radio('login', $list, 1, '是否对已登录用户失效', '已经录用户不会触发缓存策略');
         $form->addInput($element);
 
         $list = array('关闭', '开启');
@@ -85,7 +85,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             'memcached' => 'Memcached',
             'memcache' => 'Memcache',
             'redis' => 'Redis',
-            'file' => '文件'
+            'mysql' => 'Mysql'
         );
         $element = new Typecho_Widget_Helper_Form_Element_Radio('cache_driver', $list, '0', '缓存驱动');
         $form->addInput($element);
@@ -110,20 +110,25 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
     /**
      * 手动保存配置句柄
-     * @param $config 需要保存的配置
+     * @param $config array 插件配置
+     * @param $is_init bool 是否初始化
      */
-    public static function configHandle($config)
+    public static function configHandle($config, $is_init)
     {
-        self::init();
+        if ($is_init != true) {
+            self::init();
 
-        try{
-            if($config['is_clean'] == '1') self::$cache->flush();
-        }catch (Exception $e){
-            print $e->getMessage();die;
+            try {
+                if ($config['is_clean'] == '1') self::$cache->flush();
+            } catch (Exception $e) {
+                print $e->getMessage();
+                die;
+            }
+            // 删除缓存仅生效一次
+            $config['is_clean'] = '0';
         }
-        // 删除缓存仅生效一次
-        $config['is_clean'] = '0';
-        Helper::configPlugin('TpCache',$config);
+
+        Helper::configPlugin('TpCache', $config);
     }
 
     /**
@@ -171,7 +176,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                     die;
 
                 }
-            }else{
+            } else {
                 if (self::$plugin_config->is_debug) echo "Can't find cache!";
             }
 
@@ -263,8 +268,8 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         if (!empty($html)) {
             $data = array();
-            $data['html'] = $html;
             $data['c_time'] = time();
+            $data['html'] = $html;
             //更新缓存
             if (self::$plugin_config->is_debug) echo "Cache updated!\n";
             self::set(self::$key, serialize($data));
@@ -313,7 +318,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         self::init();
 
-        if(self::needCache($path_info)) self::delete(self::$path);
+        if (self::needCache($path_info)) self::delete(self::$path);
     }
 
     /**
@@ -398,15 +403,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     {
         $prefixs = array(
             'http'
-                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                    ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                            ? '' : ':' . $_SERVER['SERVER_PORT']))
-                ),
+            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
+                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                        ? '' : ':' . $_SERVER['SERVER_PORT']))
+            ),
             'https'
-                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                    ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                            ? '' : ':' . $_SERVER['SERVER_PORT']))
-                ),
+            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
+                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                        ? '' : ':' . $_SERVER['SERVER_PORT']))
+            ),
         );
         $keys = array();
         if (!is_array($path)) {
@@ -423,7 +428,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             }
         }
 
-        if (is_null($del_home)){
+        if (is_null($del_home)) {
             foreach ($prefixs as $prefix) {
                 echo $prefix . '/';
                 @self::$cache->delete(md5($prefix . '/'));
