@@ -1,15 +1,11 @@
-# TpCache
- A typecho plugin for cache
-
 ## 功能
 
 减缓网站并发压力而开发的缓存插件。
 
 ## 注意
 
-1. 测试版，不稳定
-1. 目前仅支持memcache，后续会有更多驱动支持，如数据库、redis、文件缓存。
-1. 非js方式的访问统计插件会失效
+1. 支持**Memcache**，**Redis**，**Mysql**三种驱动。
+1. **非js方式的**访问统计插件会失效
 1. BUG请在[缓存插件TpCache for Typecho][1]页汇报
 
 
@@ -52,6 +48,12 @@ Redis配置请参考[Linux服务器配置Redis并启用PHP支持][4]。
 在老高的烂主机上随便就能跑到保守800的并发(CPU占用不到70%)，什么概念呢？
 
 理论上支持每天**69120000**(60\*60\*24\*800)的PV。
+
+## 下载
+
+<gb user="phpgao" type="download" count="1" size="1" width="200"> TpCache </gb>
+
+<gb user="phpgao" type="star" count="1" size="1" width="200"> TpCache </gb>
 
 ## 安装
 
