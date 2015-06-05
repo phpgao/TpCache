@@ -343,7 +343,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     public static function comment_update($comment)
     {
         $req = new Typecho_Request();
-        self::delete_path(str_replace($req->getRequestRoot(), '', $req->getReferer()));
+        self::delete(str_replace($req->getRequestRoot(), '', $req->getReferer()));
     }
 
     /**

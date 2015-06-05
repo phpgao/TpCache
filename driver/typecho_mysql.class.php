@@ -46,7 +46,7 @@ class typecho_mysql implements TpCache
         $install_sql = '
 DROP TABLE IF EXISTS `%prefix%cache`;
 CREATE TABLE `%prefix%cache` (
-  `key` varchar(255) NOT NULL,
+  `key` char(32) NOT NULL,
   `data` text,
   `time` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`key`)
