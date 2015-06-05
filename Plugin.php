@@ -162,6 +162,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function C()
     {
+        $start = microtime(true);
         // 插件初始化
         if (self::init() == false) return false;
         // 前置条件检查
@@ -174,9 +175,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         if (!self::needCache($pathInfo)) return false;
 
         try {
-
             $data = self::get(self::$path);
-
             if ($data != false) {
                 $data = unserialize($data);
                 //如果超时
@@ -188,8 +187,10 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                 } else {
                     if (self::$plugin_config->is_debug) echo "Hit!\n";
                     if ($data['html']) echo $data['html'];
+                    $end = microtime(true);
+                    $time = number_format(($end - $start), 6);
+                    echo 'This page loaded in ', $time, ' seconds';
                     die;
-
                 }
             } else {
                 if (self::$plugin_config->is_debug) echo "Can't find cache!";
