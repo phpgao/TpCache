@@ -124,8 +124,14 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function configHandle($config, $is_init)
     {
-        if ($is_init != true) {
-            self::init();
+        if ($is_init != true && $config['cache_driver'] != '0') {
+
+            $driver_name = $config['cache_driver'];
+            $class_name = "typecho_$driver_name";
+            $file_path = "driver/$class_name.class.php";
+            require_once 'driver/cache.interface.php';
+            require_once $file_path;
+            self::$cache = $class_name::getInstance(self::$plugin_config);
 
             try {
                 if ($config['is_clean'] == '1') self::$cache->flush();
