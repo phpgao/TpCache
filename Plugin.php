@@ -131,8 +131,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $file_path = "driver/$class_name.class.php";
             require_once 'driver/cache.interface.php';
             require_once $file_path;
-            self::$cache = $class_name::getInstance(self::$plugin_config);
-
+            self::$cache = call_user_func(array($class_name, 'getInstance'), self::$plugin_config);
             try {
                 if ($config['is_clean'] == '1') self::$cache->flush();
             } catch (Exception $e) {
@@ -377,7 +376,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $file_path = "driver/$class_name.class.php";
             require_once 'driver/cache.interface.php';
             require_once $file_path;
-            self::$cache = $class_name::getInstance(self::$plugin_config);
+            self::$cache = call_user_func(array($class_name, 'getInstance'), self::$plugin_config);
         }
         if (is_null(self::$request)) {
             self::$request = new Typecho_Request();
