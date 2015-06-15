@@ -6,7 +6,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  *
  * @package TpCache
  * @author 老高
- * @version 0.6.1
+ * @version 0.6.2
  * @link http://www.phpgao.com
  */
 class TpCache_Plugin implements Typecho_Plugin_Interface
