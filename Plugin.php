@@ -6,7 +6,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  *
  * @package TpCache
  * @author 老高
- * @version 0.6.2
+ * @version 0.7
  * @link http://www.phpgao.com
  */
 class TpCache_Plugin implements Typecho_Plugin_Interface
@@ -188,7 +188,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                     if ($data['html']) echo $data['html'];
                     $end = microtime(true);
                     $time = number_format(($end - $start), 6);
-                    echo 'This page loaded in ', $time, ' seconds';
+                    if (self::$plugin_config->is_debug) echo 'This page loaded in ', $time, ' seconds';
                     die;
                 }
             } else {
