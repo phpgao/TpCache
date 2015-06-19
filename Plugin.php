@@ -45,13 +45,13 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
-        try{
+        try {
             $uninstall_sql = 'DROP TABLE IF EXISTS `%prefix%cache`';
             $db = Typecho_Db::get();
             $prefix = $db->getPrefix();
             $sql = str_replace('%prefix%', $prefix, $uninstall_sql);
             $db->query($sql);
-        }catch (Exception $e){
+        } catch (Exception $e) {
             echo $e->getMessage();
         }
     }
@@ -90,7 +90,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $form->addInput($element);
 
         $list = array(
-            0 => '不使用缓存',
+            '0' => '不使用缓存',
             'memcached' => 'Memcached',
             'memcache' => 'Memcache',
             'redis' => 'Redis',
@@ -300,13 +300,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function post_update($contents, $class)
     {
-
-
         if ('publish' != $contents['visibility'] || $contents['created'] > time()) {
             return;
         }
         //获取系统配置
         $options = Helper::options();
+
+        if(!$options->plugin('TpCache')->cache_driver){
+            return;
+        }
         //获取文章类型
         $type = $contents['type'];
         //获取路由信息
