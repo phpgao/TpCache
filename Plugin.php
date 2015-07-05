@@ -163,15 +163,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     {
         $start = microtime(true);
         // 插件初始化
-        if (self::init() == false) return false;
+        if (!self::init()) return false;
         // 前置条件检查
-        if (self::pre_check() == false) return false;
+        if (!self::pre_check()) return false;
 
-        //获取路径信息
-        $pathInfo = self::$request->getPathInfo();
 
-        //判断是否需要缓存
-        if (!self::needCache($pathInfo)) return false;
 
         try {
             $data = self::get(self::$path);
@@ -333,9 +329,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //生成永久连接
         $path_info = $routeExists ? Typecho_Router::url($type, $contents) : '#';
 
-        self::init();
-
-        if (self::needCache($path_info)) self::delete(self::$path);
+        if (self::init($path_info)) self::delete($path_info);
     }
 
     /**
@@ -356,10 +350,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
     /**
      * 插件配置初始化
+     * @param $pathInfo
      * @return bool
      * @throws Typecho_Plugin_Exception
      */
-    public static function init()
+    public static function init($pathInfo='')
     {
         if (is_null(self::$sys_config)) {
             self::$sys_config = Helper::options();
@@ -372,6 +367,33 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             return false;
         }
 
+        if(empty($pathInfo)){
+
+            if (is_null(self::$request)) {
+                self::$request = new Typecho_Request();
+            }
+
+            //获取路径信息
+            $pathInfo = self::$request->getPathInfo();
+
+            //判断是否需要缓存
+            if (!self::needCache($pathInfo)) return false;
+
+        }else{
+            if (!self::needCache($pathInfo)) return false;
+        }
+
+        self::init_driver();
+
+        return true;
+    }
+
+    /**
+     * 插件驱动初始化
+     * @return bool
+     * @throws Typecho_Plugin_Exception
+     */
+    public static function init_driver(){
         if (is_null(self::$cache)) {
             $driver_name = self::$plugin_config->cache_driver;
             $class_name = "typecho_$driver_name";
@@ -380,11 +402,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             require_once $file_path;
             self::$cache = call_user_func(array($class_name, 'getInstance'), self::$plugin_config);
         }
-        if (is_null(self::$request)) {
-            self::$request = new Typecho_Request();
-        }
-
-        return true;
     }
 
 
