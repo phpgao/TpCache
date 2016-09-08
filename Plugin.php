@@ -441,14 +441,12 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         foreach ($keys as $v) {
             foreach ($prefixs as $prefix) {
-                echo $prefix . $v;
                 @self::$cache->delete(md5($prefix . $v));
             }
         }
 
         if (is_null($del_home)) {
             foreach ($prefixs as $prefix) {
-                echo $prefix . '/';
                 @self::$cache->delete(md5($prefix . '/'));
             }
         }
