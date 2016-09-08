@@ -6,7 +6,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  *
  * @package TpCache
  * @author 老高
- * @version 0.7
+ * @version 0.6.2
  * @link http://www.phpgao.com
  */
 class TpCache_Plugin implements Typecho_Plugin_Interface
@@ -45,13 +45,13 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function deactivate()
     {
-        try {
+        try{
             $uninstall_sql = 'DROP TABLE IF EXISTS `%prefix%cache`';
             $db = Typecho_Db::get();
             $prefix = $db->getPrefix();
             $sql = str_replace('%prefix%', $prefix, $uninstall_sql);
             $db->query($sql);
-        } catch (Exception $e) {
+        }catch (Exception $e){
             echo $e->getMessage();
         }
     }
@@ -90,7 +90,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $form->addInput($element);
 
         $list = array(
-            '0' => '不使用缓存',
+            0 => '不使用缓存',
             'memcached' => 'Memcached',
             'memcache' => 'Memcache',
             'redis' => 'Redis',
@@ -106,6 +106,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $form->addInput($element);
 
         $element = new Typecho_Widget_Helper_Form_Element_Text('port', null, '11211', '端口号', '端口号，memcache对应11211，Redis对应6379，其他类型随意填写');
+        $form->addInput($element);
+
+        $element = new Typecho_Widget_Helper_Form_Element_Password('auth', null, '', '验证密码', '验证密码，Redis 的验证密码，没有就不填写');
         $form->addInput($element);
 
         $list = array('关闭', '开启');
@@ -163,11 +166,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     {
         $start = microtime(true);
         // 插件初始化
-        if (!self::init()) return false;
+        if (self::init() == false) return false;
         // 前置条件检查
-        if (!self::pre_check()) return false;
+        if (self::pre_check() == false) return false;
 
+        //获取路径信息
+        $pathInfo = self::$request->getPathInfo();
 
+        //判断是否需要缓存
+        if (!self::needCache($pathInfo)) return false;
 
         try {
             $data = self::get(self::$path);
@@ -184,11 +191,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                     if ($data['html']) echo $data['html'];
                     $end = microtime(true);
                     $time = number_format(($end - $start), 6);
-                    if (self::$plugin_config->is_debug) echo 'This page loaded in ', $time, ' seconds';
+                    echo '<!-- This page loaded in ', $time, ' seconds -->';
                     die;
                 }
             } else {
-                if (self::$plugin_config->is_debug) echo "Can't find cache!";
+                if (self::$plugin_config->is_debug) echo "<!-- Can't find cache! -->";
             }
 
         } catch (Exception $e) {
@@ -282,7 +289,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $data['c_time'] = time();
             $data['html'] = $html;
             //更新缓存
-            if (self::$plugin_config->is_debug) echo "Cache updated!\n";
+            if (self::$plugin_config->is_debug) echo "<!-- Cache updated! -->";
             self::set(self::$key, serialize($data));
         }
 
@@ -296,15 +303,13 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function post_update($contents, $class)
     {
+
+
         if ('publish' != $contents['visibility'] || $contents['created'] > time()) {
             return;
         }
         //获取系统配置
         $options = Helper::options();
-
-        if(!$options->plugin('TpCache')->cache_driver){
-            return;
-        }
         //获取文章类型
         $type = $contents['type'];
         //获取路由信息
@@ -329,7 +334,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //生成永久连接
         $path_info = $routeExists ? Typecho_Router::url($type, $contents) : '#';
 
-        if (self::init($path_info)) self::delete($path_info);
+        self::init();
+
+        if (self::needCache($path_info)) self::delete(self::$path);
     }
 
     /**
@@ -350,11 +357,10 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
     /**
      * 插件配置初始化
-     * @param $pathInfo
      * @return bool
      * @throws Typecho_Plugin_Exception
      */
-    public static function init($pathInfo='')
+    public static function init()
     {
         if (is_null(self::$sys_config)) {
             self::$sys_config = Helper::options();
@@ -367,33 +373,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             return false;
         }
 
-        if(empty($pathInfo)){
-
-            if (is_null(self::$request)) {
-                self::$request = new Typecho_Request();
-            }
-
-            //获取路径信息
-            $pathInfo = self::$request->getPathInfo();
-
-            //判断是否需要缓存
-            if (!self::needCache($pathInfo)) return false;
-
-        }else{
-            if (!self::needCache($pathInfo)) return false;
-        }
-
-        self::init_driver();
-
-        return true;
-    }
-
-    /**
-     * 插件驱动初始化
-     * @return bool
-     * @throws Typecho_Plugin_Exception
-     */
-    public static function init_driver(){
         if (is_null(self::$cache)) {
             $driver_name = self::$plugin_config->cache_driver;
             $class_name = "typecho_$driver_name";
@@ -402,6 +381,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             require_once $file_path;
             self::$cache = call_user_func(array($class_name, 'getInstance'), self::$plugin_config);
         }
+        if (is_null(self::$request)) {
+            self::$request = new Typecho_Request();
+        }
+
+        return true;
     }
 
 
