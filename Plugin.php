@@ -345,7 +345,14 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     public static function comment_update($comment)
     {
         $req = new Typecho_Request();
-        self::delete(str_replace($req->getRequestRoot(), '', $req->getReferer()));
+        // 获取评论的PATH_INFO
+        $path_info = $req->getPathInfo();
+        // 删除最后的 /comment就是需删除的key
+        $article_url = preg_replace('/\/comment$/i','',$path_info);
+
+        self::init($article_url);
+        
+        self::delete($article_url, 1);
     }
 
     /**
@@ -376,12 +383,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             //获取路径信息
             $pathInfo = self::$request->getPathInfo();
 
-            //判断是否需要缓存
-            if (!self::needCache($pathInfo)) return false;
-
-        }else{
-            if (!self::needCache($pathInfo)) return false;
         }
+        //判断是否需要缓存
+        if (!self::needCache($pathInfo)) return false;
 
         self::init_driver();
 
