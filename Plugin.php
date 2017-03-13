@@ -352,7 +352,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         self::init($article_url);
         
-        self::delete($article_url, 1);
+        self::delete($article_url);
     }
 
     /**
