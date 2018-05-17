@@ -16,7 +16,7 @@ class typecho_redis implements TpCache{
     }
 
     static public function getInstance($option) {
-        if (is_null ( self::$_instance ) || isset ( self::$_instance )) {
+        if (is_null ( self::$_instance ) || ! isset ( self::$_instance )) {
             self::$_instance = new self($option);
         }
         return self::$_instance;
