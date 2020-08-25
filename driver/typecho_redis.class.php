@@ -32,7 +32,9 @@ class typecho_redis implements TpCache
         try {
             $this->redis = new Redis();
             $this->redis->connect($this->host, $this->port);
-            $this->redis->auth($this->auth);
+            if (!empty($this->auth)) {
+                $this->redis->auth($this->auth);
+            }
         } catch (Exception $e) {
             echo $e->getMessage();
         }
