@@ -108,6 +108,9 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         $element = new Typecho_Widget_Helper_Form_Element_Text('port', null, '11211', '端口号', '端口号，memcache对应11211，Redis对应6379，其他类型随意填写');
         $form->addInput($element);
 
+        $element = new Typecho_Widget_Helper_Form_Element_Text('auth', null, 'password', '连接密码', '连接密码，没有则不填');
+        $form->addInput($element);
+
         $list = array('关闭', '开启');
         $element = new Typecho_Widget_Helper_Form_Element_Radio('is_debug', $list, 0, '是否开启debug');
         $form->addInput($element);
@@ -190,13 +193,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             } else {
                 if (self::$plugin_config->is_debug) echo "Can't find cache!";
             }
-
         } catch (Exception $e) {
             echo $e->getMessage();
         }
         // 先进行一次刷新
         ob_flush();
-
     }
 
     /**
@@ -285,7 +286,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             if (self::$plugin_config->is_debug) echo "Cache updated!\n";
             self::set(self::$key, serialize($data));
         }
-
     }
 
 
@@ -302,7 +302,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         //获取系统配置
         $options = Helper::options();
 
-        if(!$options->plugin('TpCache')->cache_driver){
+        if (!$options->plugin('TpCache')->cache_driver) {
             return;
         }
         //获取文章类型
@@ -348,10 +348,10 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
         // 获取评论的PATH_INFO
         $path_info = $req->getPathInfo();
         // 删除最后的 /comment就是需删除的key
-        $article_url = preg_replace('/\/comment$/i','',$path_info);
+        $article_url = preg_replace('/\/comment$/i', '', $path_info);
 
         self::init($article_url);
-        
+
         self::delete($article_url);
     }
 
@@ -361,7 +361,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      * @return bool
      * @throws Typecho_Plugin_Exception
      */
-    public static function init($pathInfo='')
+    public static function init($pathInfo = '')
     {
         if (is_null(self::$sys_config)) {
             self::$sys_config = Helper::options();
@@ -374,7 +374,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             return false;
         }
 
-        if(empty($pathInfo)){
+        if (empty($pathInfo)) {
 
             if (is_null(self::$request)) {
                 self::$request = new Typecho_Request();
@@ -382,7 +382,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
             //获取路径信息
             $pathInfo = self::$request->getPathInfo();
-
         }
         //判断是否需要缓存
         if (!self::needCache($pathInfo)) return false;
@@ -397,7 +396,8 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      * @return bool
      * @throws Typecho_Plugin_Exception
      */
-    public static function init_driver(){
+    public static function init_driver()
+    {
         if (is_null(self::$cache)) {
             $driver_name = self::$plugin_config->cache_driver;
             $class_name = "typecho_$driver_name";
@@ -421,7 +421,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
     public static function add($path, $data)
     {
-
     }
 
     public static function get($path)
@@ -441,15 +440,11 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
     {
         $prefixs = array(
             'http'
-            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                        ? '' : ':' . $_SERVER['SERVER_PORT']))
-            ),
+                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                    ? '' : ':' . $_SERVER['SERVER_PORT']))),
             'https'
-            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                        ? '' : ':' . $_SERVER['SERVER_PORT']))
-            ),
+                . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
+                    ? '' : ':' . $_SERVER['SERVER_PORT']))),
         );
         $keys = array();
         if (!is_array($path)) {

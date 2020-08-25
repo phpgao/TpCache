@@ -1,22 +1,27 @@
 <?php
 
-class typecho_redis implements TpCache{
+class typecho_redis implements TpCache
+{
 
     private static $_instance = null;
     private $redis = null;
     private $host = '127.0.0.1';
     private $port = 11211;
     private $expire = 86400;
+    private $auth = 'password';
 
-    private function __construct($option=null) {
+    private function __construct($option = null)
+    {
         $this->host = $option->host;
         $this->port = $option->port;
+        $this->auth = $option->auth;
         $this->expire = $option->expire + 0;
         $this->init($option);
     }
 
-    static public function getInstance($option) {
-        if (is_null ( self::$_instance ) || ! isset ( self::$_instance )) {
+    static public function getInstance($option)
+    {
+        if (is_null(self::$_instance) || !isset(self::$_instance)) {
             self::$_instance = new self($option);
         }
         return self::$_instance;
@@ -24,15 +29,16 @@ class typecho_redis implements TpCache{
 
     public function init($option)
     {
-        try{
+        try {
             $this->redis = new Redis();
             $this->redis->connect($this->host, $this->port);
-        }catch (Exception $e){
+            $this->redis->auth($this->auth);
+        } catch (Exception $e) {
             echo $e->getMessage();
         }
     }
 
-    public function add($key, $value, $expire=null)
+    public function add($key, $value, $expire = null)
     {
         return $this->redis->set($key, $value, is_null($expire) ? $this->expire : $expire);
     }
@@ -42,7 +48,7 @@ class typecho_redis implements TpCache{
         return $this->redis->delete($key);
     }
 
-    public function set($key, $value, $expire=null)
+    public function set($key, $value, $expire = null)
     {
         return $this->redis->set($key, $value, is_null($expire) ? $this->expire : $expire);
     }
